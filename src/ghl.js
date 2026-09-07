@@ -9,27 +9,22 @@ async function req(method,path,{query,body}={}){
  return data;
 }
 
-async function collect(path,query={},arrayKeys=[]){
- const all=[]; let page=1, cursor;
+export async function contacts(){
+ const all=[]; let searchAfter;
  for(let i=0;i<10000;i++){
-  const q={...query,page,limit:100}; if(cursor) q.startingAfterId=cursor;
-  const d=await req('GET',path,{query:q});
-  let rows=[]; for(const k of arrayKeys) if(Array.isArray(d?.[k])){rows=d[k];break}
-  if(!rows.length && Array.isArray(d)) rows=d;
-  all.push(...rows);
-  const next=d?.meta?.nextCursor??d?.nextCursor??d?.meta?.next_cursor??d?.next_cursor;
-  const nextId=d?.meta?.startAfterId??d?.startAfterId;
-  if(next){cursor=next; continue}
-  if(nextId){cursor=nextId; continue}
+  const body={locationId:cfg.locationId,pageLimit:100,sort:[{field:'dateAdded',direction:'asc'}]};
+  if(searchAfter) body.searchAfter=searchAfter;
+  const d=await req('POST','/contacts/search',{body});
+  const rows=d?.contacts||[]; all.push(...rows);
   if(rows.length<100) break;
-  page++;
+  searchAfter=rows[rows.length-1]?.searchAfter; if(!searchAfter) break;
  }
  return all;
 }
 
 export const resources={
  location:()=>req('GET',`/locations/${cfg.locationId}`),
- contacts:()=>collect('/contacts/',{locationId:cfg.locationId},['contacts']),
+ contacts,
  pipelines:()=>req('GET','/opportunities/pipelines',{query:{locationId:cfg.locationId}}),
  calendars:()=>req('GET','/calendars/',{query:{locationId:cfg.locationId}}),
  customFields:()=>req('GET',`/locations/${cfg.locationId}/customFields`),
@@ -37,7 +32,7 @@ export const resources={
  tags:()=>req('GET',`/locations/${cfg.locationId}/tags`),
  workflows:()=>req('GET','/workflows/',{query:{locationId:cfg.locationId}}),
  campaigns:()=>req('GET','/campaigns/',{query:{locationId:cfg.locationId}}),
- objects:()=>req('GET','/objects',{query:{locationId:cfg.locationId}})
+ objects:()=>req('GET','/objects/',{query:{locationId:cfg.locationId}})
 };
 
 export async function opportunities(){
@@ -50,7 +45,7 @@ export async function opportunities(){
  return all;
 }
 export async function contactUpsert(contact){
- const body={...contact,locationId:cfg.locationId}; delete body.id; delete body.contactId; delete body.dateAdded; delete body.dateUpdated;
+ const body={...contact,locationId:cfg.locationId}; delete body.id; delete body.contactId; delete body.dateAdded; delete body.dateUpdated; delete body.searchAfter;
  return req('POST','/contacts/upsert',{body});
 }
 export async function createOpportunity(o){
