@@ -1,0 +1,7 @@
+# Local only: publishes the web UI on http://localhost:3000.
+# `docker compose up` loads this file automatically; Coolify does not
+# (it passes -f docker-compose.yml explicitly and routes via its proxy).
+services:
+  ghl-backup:
+    ports:
+      - "127.0.0.1:3000:3000"
